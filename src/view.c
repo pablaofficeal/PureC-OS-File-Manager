@@ -10,11 +10,6 @@
 #define CELL_H 108
 #define SB 10
 
-enum action {
-    A_OPEN = 1, A_OPEN_WITH, A_CUT, A_COPY, A_PASTE, A_RENAME, A_DELETE, A_PROPS,
-    A_NEWFOLDER, A_NEWFILE, A_REFRESH, A_SELALL, A_HIDDEN, A_LIST, A_GRID
-};
-
 static int hover = -1;
 static int hover_hdr = -1;
 static bool rubber, rubber_moved;
@@ -474,45 +469,17 @@ void view_rubber_reset(void)
 static void menu_cb(int index, void *data)
 {
     (void)index;
-    int a = (int)(intptr_t)data;
-    switch (a) {
-    case A_OPEN: {
-        int n;
-        char **p = view_selection_paths(&n);
-        if (n == 1)
-            open_entry(view_selected_index());
-        else
-            for (int i = 0; i < fm.nvis; i++)
-                if (fm.ents[fm.vis[i]].sel && !fm.ents[fm.vis[i]].dir)
-                    open_entry(fm.vis[i]);
-        view_free_paths(p, n);
-        break;
-    }
-    case A_OPEN_WITH: {
-        int i = view_selected_index();
-        if (i >= 0) {
-            char *p = view_path_of(i);
-            if (p)
-                dlg_open_with(p);
-            free(p);
-        }
-        break;
-    }
-    case A_CUT: ops_copy_selection(true); break;
-    case A_COPY: ops_copy_selection(false); break;
-    case A_PASTE: ops_paste(); break;
-    case A_RENAME: ops_rename(); break;
-    case A_DELETE: ops_delete_selection(); break;
-    case A_PROPS: ops_properties(); break;
-    case A_NEWFOLDER: ops_new_folder(); break;
-    case A_NEWFILE: ops_new_file(); break;
-    case A_REFRESH: fm_reload(); break;
-    case A_SELALL: view_select_all(); break;
-    case A_HIDDEN: fm_toggle_hidden(); break;
-    case A_LIST: fm_set_view(0); break;
-    case A_GRID: fm_set_view(1); break;
-    default: break;
-    }
+    fm_do((int)(intptr_t)data);
+}
+
+static void ctx_add(const char *label, int act, const char *shortcut, bool enabled, bool checked)
+{
+    int k = pg_menu_add(menu, label, PG_NO_ICON, menu_cb, (void *)(intptr_t)act);
+    if (shortcut)
+        pg_menu_set_shortcut(menu, k, shortcut);
+    pg_menu_set_enabled(menu, k, enabled);
+    if (act == A_HIDDEN)
+        pg_menu_set_checked(menu, k, checked);
 }
 
 void view_context(int x, int y, bool on_item)
@@ -526,32 +493,32 @@ void view_context(int x, int y, bool on_item)
     int wx = x - 0, wy = y - 0;
     if (on_item) {
         int n = view_count_selected();
-        pg_menu_add(menu, "Open", PG_NO_ICON, menu_cb, (void *)(intptr_t)A_OPEN);
+        int si = view_selected_index();
+        bool one_dir = n == 1 && si >= 0 && fm.ents[si].dir;
+        ctx_add("Open", A_OPEN, "Enter", true, false);
         if (n == 1)
-            pg_menu_add(menu, "Open with...", PG_NO_ICON, menu_cb, (void *)(intptr_t)A_OPEN_WITH);
+            ctx_add("Open with...", A_OPEN_WITH, NULL, true, false);
+        if (one_dir)
+            ctx_add("Open in Terminal", A_OPEN_TERM, NULL, true, false);
         pg_menu_add_separator(menu);
-        pg_menu_add(menu, "Cut", PG_NO_ICON, menu_cb, (void *)(intptr_t)A_CUT);
-        pg_menu_add(menu, "Copy", PG_NO_ICON, menu_cb, (void *)(intptr_t)A_COPY);
-        int paste = pg_menu_add(menu, "Paste", PG_NO_ICON, menu_cb, (void *)(intptr_t)A_PASTE);
-        pg_menu_set_enabled(menu, paste, fm.clip_n > 0);
+        ctx_add("Cut", A_CUT, "Ctrl+X", true, false);
+        ctx_add("Copy", A_COPY, "Ctrl+C", true, false);
+        ctx_add(one_dir ? "Paste into" : "Paste", one_dir ? A_PASTE_INTO : A_PASTE, "Ctrl+V", fm.clip_n > 0, false);
         pg_menu_add_separator(menu);
-        int ren = pg_menu_add(menu, "Rename", PG_NO_ICON, menu_cb, (void *)(intptr_t)A_RENAME);
-        pg_menu_set_enabled(menu, ren, n == 1);
-        pg_menu_add(menu, "Delete", PG_NO_ICON, menu_cb, (void *)(intptr_t)A_DELETE);
+        ctx_add("Rename", A_RENAME, "F2", n == 1, false);
+        ctx_add("Delete", A_DELETE, "Del", true, false);
         pg_menu_add_separator(menu);
-        pg_menu_add(menu, "Properties", PG_NO_ICON, menu_cb, (void *)(intptr_t)A_PROPS);
+        ctx_add("Properties", A_PROPS, "Alt+Enter", true, false);
     } else {
-        pg_menu_add(menu, "New folder", PG_NO_ICON, menu_cb, (void *)(intptr_t)A_NEWFOLDER);
-        pg_menu_add(menu, "New file", PG_NO_ICON, menu_cb, (void *)(intptr_t)A_NEWFILE);
-        int paste = pg_menu_add(menu, "Paste", PG_NO_ICON, menu_cb, (void *)(intptr_t)A_PASTE);
-        pg_menu_set_enabled(menu, paste, fm.clip_n > 0);
+        ctx_add("New Folder", A_NEWFOLDER, "Ctrl+Shift+N", true, false);
+        ctx_add("New File", A_NEWFILE, NULL, true, false);
+        ctx_add("Paste", A_PASTE, "Ctrl+V", fm.clip_n > 0, false);
         pg_menu_add_separator(menu);
-        pg_menu_add(menu, "Select all", PG_NO_ICON, menu_cb, (void *)(intptr_t)A_SELALL);
-        pg_menu_add(menu, fm.show_hidden ? "Hide hidden files" : "Show hidden files", PG_NO_ICON, menu_cb, (void *)(intptr_t)A_HIDDEN);
-        pg_menu_add(menu, fm.grid ? "List view" : "Grid view", PG_NO_ICON, menu_cb, (void *)(intptr_t)(fm.grid ? A_LIST : A_GRID));
-        pg_menu_add(menu, "Refresh", PG_NO_ICON, menu_cb, (void *)(intptr_t)A_REFRESH);
+        ctx_add("Select All", A_SELALL, "Ctrl+A", true, false);
+        ctx_add("Show hidden files", A_HIDDEN, "Ctrl+H", true, fm.show_hidden);
+        ctx_add("Refresh", A_REFRESH, "F5", true, false);
         pg_menu_add_separator(menu);
-        pg_menu_add(menu, "Properties", PG_NO_ICON, menu_cb, (void *)(intptr_t)A_PROPS);
+        ctx_add("Properties", A_PROPS, "Alt+Enter", true, false);
     }
     pg_menu_popup(menu, win, wx, wy);
 }

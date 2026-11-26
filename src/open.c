@@ -220,7 +220,7 @@ static void spawn_exec(const char *cmd)
     free_args(argv);
 }
 
-static void spawn_terminal(const char *cmd, bool pause)
+static void spawn_terminal_in(const char *dir, const char *cmd, bool pause)
 {
     size_t count = 0;
     while (environ && environ[count])
@@ -234,7 +234,7 @@ static void spawn_terminal(const char *cmd, bool pause)
             env[n++] = environ[i];
     char run[FM_PATH * 2 + 32], cwd[FM_PATH + 16];
     snprintf(run, sizeof(run), "FILES_RUN=%s", cmd);
-    snprintf(cwd, sizeof(cwd), "FILES_CWD=%s", fm.path);
+    snprintf(cwd, sizeof(cwd), "FILES_CWD=%s", dir);
     env[n++] = run;
     env[n++] = cwd;
     env[n++] = pause ? "FILES_PAUSE=1" : "FILES_NOPAUSE=1";
@@ -249,6 +249,16 @@ static void spawn_terminal(const char *cmd, bool pause)
         snprintf(msg, sizeof(msg), "Cannot start the terminal: %s", ops_strerror(rc));
         dlg_message("Files", msg);
     }
+}
+
+static void spawn_terminal(const char *cmd, bool pause)
+{
+    spawn_terminal_in(fm.path, cmd, pause);
+}
+
+void open_terminal_in(const char *dir)
+{
+    spawn_terminal_in(dir, "sh", false);
 }
 
 int open_trampoline(const char *cmd, bool pause)

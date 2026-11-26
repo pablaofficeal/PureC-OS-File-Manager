@@ -553,7 +553,7 @@ void ops_shutdown(void)
     job.active = false;
 }
 
-void ops_paste(void)
+void ops_paste_to(const char *dir)
 {
     if (!fm.clip_n)
         return;
@@ -565,7 +565,7 @@ void ops_paste(void)
     for (int i = 0; i < fm.clip_n; i++) {
         char parent[FM_PATH];
         parent_path(fm.clip[i], parent, sizeof(parent));
-        if (cut && strcmp(parent, fm.path) == 0)
+        if (cut && strcmp(parent, dir) == 0)
             continue;
         copy[n++] = strdup(fm.clip[i]);
     }
@@ -577,7 +577,12 @@ void ops_paste(void)
     }
     if (cut)
         ops_clip_clear();
-    ops_start_transfer(copy, n, fm.path, cut);
+    ops_start_transfer(copy, n, dir, cut);
+}
+
+void ops_paste(void)
+{
+    ops_paste_to(fm.path);
 }
 
 struct del_ctx {

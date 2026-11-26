@@ -36,6 +36,13 @@ struct entry {
 
 enum sort_col { SORT_NAME = 0, SORT_SIZE, SORT_DATE, SORT_TYPE };
 
+enum fm_action {
+    A_NONE = 0, A_OPEN, A_OPEN_WITH, A_OPEN_TERM, A_CUT, A_COPY, A_PASTE, A_PASTE_INTO, A_RENAME, A_DELETE, A_PROPS,
+    A_NEWFOLDER, A_NEWFILE, A_REFRESH, A_SELALL, A_HIDDEN, A_LIST, A_GRID,
+    A_SORT_NAME, A_SORT_SIZE, A_SORT_DATE, A_SORT_TYPE,
+    A_BACK, A_FWD, A_UP, A_HOME, A_ENTERPATH, A_CLOSE, A_ABOUT
+};
+
 struct fm {
     struct pg_window *win;
     struct pg_widget *view;
@@ -47,6 +54,8 @@ struct fm {
     struct pg_widget *btn_back, *btn_fwd, *btn_up, *btn_view;
     struct pg_widget *st_left, *st_right;
     struct pg_widget *st_busy;
+    struct pg_widget *menubar;
+    struct pg_widget *btn_hidden;
 
     char path[FM_PATH];
     char **hist;
@@ -137,6 +146,7 @@ void dlg_progress_update(struct pg_window *w, const char *line, uint32_t permill
 
 void ops_copy_selection(bool cut);
 void ops_paste(void);
+void ops_paste_to(const char *dir);
 void ops_delete_selection(void);
 void ops_new_folder(void);
 void ops_new_file(void);
@@ -152,7 +162,16 @@ const char *ops_strerror(int err);
 void ops_shutdown(void);
 
 void open_entry(int ent_index);
+void open_terminal_in(const char *dir);
 void open_path(const char *path, bool is_dir);
 int open_trampoline(const char *cmd, bool pause);
 void open_load_config(void);
 void open_with_command(const char *cmd, const char *path);
+
+void fm_do(int action);
+bool fm_action_enabled(int action);
+struct pg_widget *menubar_new(void);
+bool menubar_key(const struct pg_event *e);
+void menubar_close(void);
+struct pg_widget *hidden_toggle_new(void);
+void hidden_toggle_sync(void);

@@ -427,6 +427,12 @@ static void mode_string(mode_t m, char *out)
     const char *rwx = "rwxrwxrwx";
     for (int i = 0; i < 9; i++)
         out[i] = (m & (0400 >> i)) ? rwx[i] : '-';
+    if (m & S_ISUID)
+        out[2] = (m & 0100) ? 's' : 'S';
+    if (m & S_ISGID)
+        out[5] = (m & 010) ? 's' : 'S';
+    if (m & S_ISVTX)
+        out[8] = (m & 01) ? 't' : 'T';
     out[9] = 0;
 }
 

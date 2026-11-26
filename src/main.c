@@ -571,13 +571,6 @@ static void on_filter(struct pg_widget *w, void *d)
     fm_apply_filter();
 }
 
-static void on_hidden(struct pg_widget *w, void *d)
-{
-    (void)d;
-    fm.show_hidden = pg_checkbox_active(w);
-    fm_apply_filter();
-}
-
 struct seg {
     int x0, x1;
     char path[FM_PATH];
@@ -738,6 +731,8 @@ static bool on_key(struct pg_window *win, const struct pg_event *e, void *data)
         }
         return false;
     }
+    if (menubar_key(e))
+        return true;
     if (alt && e->key == PG_KEY_LEFT) {
         fm_go_back();
         return true;
@@ -751,12 +746,15 @@ static bool on_key(struct pg_window *win, const struct pg_event *e, void *data)
         return true;
     }
     if (ctrl && e->key == 0x0B) {
-        fm_toggle_hidden();
-        pg_checkbox_set_active((struct pg_widget *)pg_window_user(fm.win), fm.show_hidden);
+        fm_do(A_HIDDEN);
         return true;
     }
     if (ctrl && shift && e->key == 0x11) {
         ops_new_folder();
+        return true;
+    }
+    if (ctrl && e->key == PG_KEY_W) {
+        pg_window_close(fm.win);
         return true;
     }
     if (ctrl && e->key == PG_KEY_Q) {
@@ -791,7 +789,7 @@ static bool on_key(struct pg_window *win, const struct pg_event *e, void *data)
         ops_delete_selection();
         return true;
     }
-    if (e->key == 0x28 && alt) {
+    if (e->key == PG_KEY_ENTER && alt) {
         ops_properties();
         return true;
     }
@@ -835,6 +833,8 @@ int main(int argc, char **argv)
     pg_window_on_close(fm.win, on_close, NULL);
 
     struct pg_widget *root = pg_vbox(0);
+    pg_widget_add(root, menubar_new());
+    pg_widget_add(root, pg_separator_new());
     struct pg_widget *bar = pg_hbox(6);
     pg_box_set_padding(bar, 10, 8, 10, 8);
     fm.btn_back = pg_button_new("", PGI_CHEVRON_LEFT, PG_BUTTON_FLAT);
@@ -864,6 +864,7 @@ int main(int argc, char **argv)
     fm.btn_view = pg_segmented_new(modes, 2);
     pg_widget_on(fm.btn_view, PG_SIGNAL_CHANGED, on_view, NULL);
     pg_widget_add(bar, fm.btn_view);
+    pg_widget_add(bar, hidden_toggle_new());
     pg_widget_add(root, bar);
     pg_widget_add(root, pg_separator_new());
 
@@ -883,17 +884,17 @@ int main(int argc, char **argv)
     pg_widget_add(root, pg_separator_new());
 
     struct pg_widget *status = pg_hbox(14);
-    pg_box_set_padding(status, 12, 5, 12, 5);
+    pg_box_set_padding(status, 12, 0, 12, 0);
+    pg_widget_set_size(status, -1, 24);
+    pg_widget_set_expand(status, true, false);
     fm.st_left = pg_label_new_font("", PGF_SMALL, PG_COLOR_TEXT2);
     fm.st_busy = pg_label_new_font("", PGF_SMALL, PG_COLOR_ACCENT);
     fm.st_right = pg_label_new_font("", PGF_SMALL, PG_COLOR_TEXT2);
-    struct pg_widget *hid = pg_checkbox_new("Hidden files", false);
-    pg_widget_on(hid, PG_SIGNAL_CHANGED, on_hidden, NULL);
-    pg_window_set_user(fm.win, hid);
     pg_widget_add(status, fm.st_left);
     pg_widget_add(status, fm.st_busy);
-    pg_widget_add(status, pg_spacer_new());
-    pg_widget_add(status, hid);
+    struct pg_widget *gap = pg_spacer_new();
+    pg_widget_set_expand(gap, true, false);
+    pg_widget_add(status, gap);
     pg_widget_add(status, fm.st_right);
     pg_widget_add(root, status);
     pg_window_set_child(fm.win, root);
